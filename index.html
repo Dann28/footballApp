@@ -203,9 +203,25 @@ Object.keys(FORMATIONS).forEach(f=>{
 });
 fSel.value=DB.state.formation;
 fSel.onchange=()=>{
+  const oldPos=DB.state.positions||FORMATIONS[DB.state.formation];
+  const oldPlaced=DB.state.placed;
+  const newPos=FORMATIONS[fSel.value].map(p=>[...p]);
+  const newPlaced={};
+  const used=new Set();
+  // Sort by Y descending (GK first) so keeper anchors correctly
+  const items=Object.keys(oldPlaced).map(k=>({pid:oldPlaced[k],pos:oldPos[k]})).sort((a,b)=>b.pos[1]-a.pos[1]);
+  for(const it of items){
+    let best=-1,bd=Infinity;
+    for(let i=0;i<newPos.length;i++){
+      if(used.has(i))continue;
+      const dx=newPos[i][0]-it.pos[0],dy=newPos[i][1]-it.pos[1],d=dx*dx+dy*dy;
+      if(d<bd){bd=d;best=i;}
+    }
+    if(best>=0){newPlaced[best]=it.pid;used.add(best);}
+  }
   DB.state.formation=fSel.value;
-  DB.state.positions=null;
-  DB.state.placed={};
+  DB.state.positions=newPos;
+  DB.state.placed=newPlaced;
   save('state');
   renderPitch();
 };
