@@ -10,11 +10,13 @@
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#1e1e1e;color:#eee;user-select:none}
 body{display:flex;flex-direction:column}
-header{background:#1a7a4a;padding:8px 12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;border-bottom:2px solid #14663d}
-header h1{font-size:16px;font-weight:600;flex-shrink:0}
-header select,header button{background:#22915a;color:#fff;border:none;padding:6px 12px;border-radius:6px;font-size:13px;cursor:pointer;font-weight:500}
+header{background:#1a7a4a;padding:6px 10px;display:flex;align-items:center;gap:6px;border-bottom:2px solid #14663d}
+header .icon{font-size:20px;flex-shrink:0}
+header select{background:#22915a;color:#fff;border:none;padding:6px 8px;border-radius:6px;font-size:13px;cursor:pointer;font-weight:500;min-width:0}
+#formationSel{flex:0 0 auto;width:90px}
+#teamSelH{flex:1;min-width:60px}
+header button{background:#22915a;color:#fff;border:none;padding:6px 12px;border-radius:6px;font-size:13px;cursor:pointer;font-weight:500;flex-shrink:0}
 header button:active{background:#1a7a4a}
-header select{flex:1;min-width:100px;max-width:200px}
 .tabs{display:flex;background:#282828;border-bottom:1px solid #3a3a3a}
 .tab{flex:1;padding:10px;text-align:center;cursor:pointer;font-size:13px;color:#aaa;border-bottom:2px solid transparent}
 .tab.active{color:#4ade80;border-color:#4ade80;background:#1e1e1e}
@@ -23,20 +25,24 @@ main{flex:1;overflow:hidden;position:relative}
 .view.active{display:block}
 #pitchView{display:none;flex-direction:column}
 #pitchView.active{display:flex}
-.pitch-controls{display:flex;gap:6px;padding:8px;background:#282828;flex-wrap:wrap;align-items:center}
-.pitch-controls select{background:#3a3a3a;color:#fff;border:1px solid #4a4a4a;padding:5px 8px;border-radius:5px;font-size:12px;min-width:0}
-.pitch-controls button{border:none;padding:6px 10px;border-radius:5px;font-size:12px;cursor:pointer;font-weight:500}
 .pitch-wrap{flex:1;position:relative;background:#1a8a50;overflow:hidden;display:flex;align-items:center;justify-content:center}
 .pitch{width:100%;height:100%;max-width:100vh;position:relative}
 .pitch svg.field{width:100%;height:100%;display:block}
-.player{position:absolute;width:11%;aspect-ratio:1;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:grab;touch-action:none;z-index:2}
+.player{position:absolute;width:14%;aspect-ratio:1;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:grab;touch-action:none;z-index:2}
+@media(min-width:600px){.player{width:11%}}
 .player.dragging{z-index:10;cursor:grabbing}
 .jersey-wrap{width:80%;position:relative;display:flex;align-items:center;justify-content:center}
 .jersey-wrap svg{width:100%;height:auto;filter:drop-shadow(0 2px 3px rgba(0,0,0,.5))}
-.jersey-num{position:absolute;top:52%;left:50%;transform:translate(-50%,-50%);font-weight:700;font-size:clamp(9px,2.2vw,16px);color:#fff;text-shadow:0 0 3px rgba(0,0,0,.6)}
-.player-name{font-size:clamp(7px,1.5vw,10px);color:#fff;text-shadow:1px 1px 2px #000;margin-top:1px;white-space:nowrap;max-width:120%;overflow:hidden;text-overflow:ellipsis;font-weight:600;text-align:center}
-.bench{background:#282828;padding:8px;border-top:2px solid #3a3a3a;max-height:30vh;overflow-y:auto}
-.bench-title{font-size:11px;color:#888;margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px}
+.jersey-num{position:absolute;top:52%;left:50%;transform:translate(-50%,-50%);font-weight:700;font-size:clamp(10px,3vw,18px);color:#fff;text-shadow:0 0 3px rgba(0,0,0,.6)}
+.player-name{font-size:clamp(8px,2vw,11px);color:#fff;text-shadow:1px 1px 2px #000;margin-top:1px;white-space:nowrap;max-width:130%;overflow:hidden;text-overflow:ellipsis;font-weight:600;text-align:center}
+.bottom-bar{background:#282828;border-top:2px solid #3a3a3a;display:flex;flex-direction:column}
+.bench{padding:8px;max-height:25vh;overflow-y:auto}
+.bench-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.bench-title{font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.5px}
+.bench-actions{display:flex;gap:4px}
+.bench-actions button{border:none;padding:4px 10px;border-radius:5px;font-size:11px;cursor:pointer;font-weight:500;color:#fff}
+.btn-auto{background:#22915a}
+.btn-clear{background:#dc2626}
 .bench-list{display:flex;gap:6px;flex-wrap:wrap}
 .bench-player{background:#3a3a3a;padding:5px 9px;border-radius:14px;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:5px}
 .bench-player .num{background:#4ade80;color:#000;border-radius:50%;width:18px;height:18px;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:10px}
@@ -91,7 +97,8 @@ main{flex:1;overflow:hidden;position:relative}
 </head>
 <body>
 <header>
-<h1>Opstilling</h1>
+<span class="icon">⚽</span>
+<select id="teamSelH"><option value="">Hold...</option></select>
 <select id="formationSel"></select>
 <button id="saveBtn">Gem</button>
 </header>
@@ -103,11 +110,6 @@ main{flex:1;overflow:hidden;position:relative}
 </div>
 <main>
 <div id="pitchView" class="view active">
-<div class="pitch-controls">
-<select id="teamSel"><option value="">Vælg hold...</option></select>
-<button id="autoFillBtn" style="background:#22915a;color:#fff">Auto fyld</button>
-<button id="clearPitchBtn" style="background:#dc2626;color:#fff">Ryd</button>
-</div>
 <div class="pitch-wrap">
 <div class="pitch" id="pitch">
 <svg class="field" viewBox="0 0 100 150" preserveAspectRatio="none">
@@ -129,9 +131,17 @@ main{flex:1;overflow:hidden;position:relative}
 </svg>
 </div>
 </div>
+<div class="bottom-bar">
 <div class="bench">
-<div class="bench-title">Bænken / Udskiftere</div>
+<div class="bench-header">
+<span class="bench-title">Bænken</span>
+<div class="bench-actions">
+<button class="btn-auto" id="autoFillBtn">Auto fyld</button>
+<button class="btn-clear" id="clearPitchBtn">Ryd</button>
+</div>
+</div>
 <div class="bench-list" id="benchList"></div>
+</div>
 </div>
 </div>
 <div id="playersView" class="view">
@@ -178,18 +188,18 @@ function jerseyColor(){
   const t=DB.teams.find(x=>x.id===DB.state.teamId);
   return t&&t.color||'#2563eb';
 }
-function gkColor(){return'#f59e0b'}
 function jerseySvg(color,isGk){
-  const c=isGk?gkColor():color;
-  return`<svg viewBox="0 0 40 44" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M13 2 L5 6 L0 16 L6 18 L8 12 L8 42 L32 42 L32 12 L34 18 L40 16 L35 6 L27 2 Q24 6 20 7 Q16 6 13 2Z" fill="${c}" stroke="rgba(0,0,0,.3)" stroke-width="1"/><path d="M13 2 Q16 6 20 7 Q24 6 27 2" fill="none" stroke="rgba(255,255,255,.4)" stroke-width=".8"/></svg>`;
+  const c=isGk?'#f59e0b':color;
+  return`<svg viewBox="0 0 40 44" fill="none"><path d="M13 2 L5 6 L0 16 L6 18 L8 12 L8 42 L32 42 L32 12 L34 18 L40 16 L35 6 L27 2 Q24 6 20 7 Q16 6 13 2Z" fill="${c}" stroke="rgba(0,0,0,.3)" stroke-width="1"/><path d="M13 2 Q16 6 20 7 Q24 6 27 2" fill="none" stroke="rgba(255,255,255,.4)" stroke-width=".8"/></svg>`;
 }
 
 const DB={
 players:JSON.parse(localStorage.getItem('fb_players')||'[]'),
 teams:JSON.parse(localStorage.getItem('fb_teams')||'[]'),
 lineups:JSON.parse(localStorage.getItem('fb_lineups')||'[]'),
-state:JSON.parse(localStorage.getItem('fb_state')||'{"formation":"4-3-3","teamId":null,"placed":{},"positions":null}')
+state:JSON.parse(localStorage.getItem('fb_state')||'{"formation":"4-3-3","teamId":null,"placed":{},"positions":null,"ballPos":null}')
 };
+if(!DB.state.ballPos)DB.state.ballPos=[50,75];
 const save=k=>localStorage.setItem('fb_'+k,JSON.stringify(DB[k]));
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
 
@@ -234,10 +244,10 @@ fSel.onchange=()=>{
   renderPitch();
 };
 
-// Team select
-const tSel=document.getElementById('teamSel');
+// Team select (header)
+const tSel=document.getElementById('teamSelH');
 function refreshTeamSel(){
-  tSel.innerHTML='<option value="">Vælg hold...</option>';
+  tSel.innerHTML='<option value="">Hold...</option>';
   DB.teams.forEach(t=>{
     const o=document.createElement('option');o.value=t.id;o.textContent=t.name;
     if(t.id===DB.state.teamId)o.selected=true;
@@ -277,17 +287,17 @@ function renderPitch(){
     const p=pid?DB.players.find(x=>x.id===pid):null;
     el.innerHTML=`<div class="jersey-wrap">${jerseySvg(jc,isGk)}<span class="jersey-num">${p?p.num:'+'}</span></div><div class="player-name">${p?escapeHtml(p.name):'Tom'}</div>`;
     pitch.appendChild(el);
-    attachDrag(el,i);
+    attachDrag(el,i,'player');
     el.addEventListener('click',e=>{if(!el._moved)openSlotPicker(i)});
   });
   renderBench();
 }
 
 let drag=null;
-function attachDrag(el,idx){
+function attachDrag(el,idx,type){
   const start=(x,y)=>{
     const r=pitch.getBoundingClientRect();
-    drag={el,idx,startX:x,startY:y,r,moved:false};
+    drag={el,idx,type,startX:x,startY:y,r,moved:false};
     el._moved=false;
     el.classList.add('dragging');
   };
@@ -297,14 +307,16 @@ function attachDrag(el,idx){
     if(!drag.moved)return;
     const px=((x-drag.r.left)/drag.r.width)*100;
     const py=((y-drag.r.top)/drag.r.height)*100;
-    el.style.left=Math.max(5,Math.min(95,px))+'%';
-    el.style.top=Math.max(5,Math.min(95,py))+'%';
+    el.style.left=Math.max(3,Math.min(97,px))+'%';
+    el.style.top=Math.max(3,Math.min(97,py))+'%';
   };
   const end=()=>{
     if(!drag||drag.el!==el)return;
     el.classList.remove('dragging');
     if(drag.moved){
-      DB.state.positions[idx]=[parseFloat(el.style.left),parseFloat(el.style.top)];
+      const p=[parseFloat(el.style.left),parseFloat(el.style.top)];
+      if(type==='ball')DB.state.ballPos=p;
+      else DB.state.positions[idx]=p;
       save('state');
     }
     drag=null;
@@ -370,6 +382,7 @@ document.getElementById('autoFillBtn').onclick=()=>{
 document.getElementById('clearPitchBtn').onclick=()=>{
   DB.state.placed={};
   DB.state.positions=null;
+  DB.state.ballPos=[50,75];
   save('state');renderPitch();
 };
 
@@ -470,7 +483,6 @@ function openTeamEdit(id){
       <button class="btn-cancel" onclick="closeModal()">Annuller</button>
       <button class="btn-primary" id="saveTeam">Gem</button>
     </div>`);
-  // Color presets
   const cInput=document.getElementById('teamColor');
   document.querySelectorAll('.color-preset').forEach(el=>{
     el.onclick=()=>{
@@ -480,10 +492,8 @@ function openTeamEdit(id){
     };
   });
   cInput.oninput=()=>document.querySelectorAll('.color-preset').forEach(x=>x.classList.remove('active'));
-  // Select all / none
   document.getElementById('selAll').onclick=()=>document.querySelectorAll('.modal-list input[type=checkbox]').forEach(c=>c.checked=true);
   document.getElementById('selNone').onclick=()=>document.querySelectorAll('.modal-list input[type=checkbox]').forEach(c=>c.checked=false);
-  // Save
   document.getElementById('saveTeam').onclick=()=>{
     const name=document.getElementById('teamName').value.trim();
     if(!name)return alert('Indtast navn');
@@ -514,6 +524,7 @@ document.getElementById('saveBtn').onclick=()=>{
     teamId:DB.state.teamId,
     placed:{...DB.state.placed},
     positions:DB.state.positions?DB.state.positions.map(p=>[...p]):null,
+    ballPos:[...DB.state.ballPos],
     date:new Date().toISOString()
   });
   save('lineups');
@@ -544,6 +555,7 @@ function renderLineups(){
       DB.state.teamId=l.teamId;
       DB.state.placed={...l.placed};
       DB.state.positions=l.positions?l.positions.map(p=>[...p]):null;
+      DB.state.ballPos=l.ballPos||[50,75];
       save('state');
       fSel.value=l.formation;
       document.querySelector('.tab[data-view=pitchView]').click();
@@ -557,7 +569,6 @@ function renderLineups(){
   });
 }
 
-// Modal
 function showModal(html){
   document.getElementById('modalContent').innerHTML=html;
   document.getElementById('modal').classList.add('show');
@@ -565,7 +576,6 @@ function showModal(html){
 function closeModal(){document.getElementById('modal').classList.remove('show')}
 window.closeModal=closeModal;
 document.getElementById('modal').onclick=e=>{if(e.target.id==='modal')closeModal()};
-
 function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 
 if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js').catch(()=>{})}
