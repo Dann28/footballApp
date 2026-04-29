@@ -43,15 +43,21 @@ main{flex:1;overflow:hidden;position:relative}
 .jersey-wrap svg{width:100%;height:auto;filter:drop-shadow(0 2px 3px rgba(0,0,0,.5))}
 .jersey-num{position:absolute;top:52%;left:50%;transform:translate(-50%,-50%);font-weight:700;font-size:clamp(10px,3vw,18px);color:#fff;text-shadow:0 0 3px rgba(0,0,0,.6)}
 .player-name{font-size:clamp(8px,2vw,11px);color:#fff;text-shadow:1px 1px 2px #000;margin-top:1px;white-space:nowrap;max-width:130%;overflow:hidden;text-overflow:ellipsis;font-weight:600;text-align:center}
-.bottom-bar{background:#282828;border-top:2px solid #3a3a3a;display:flex;flex-direction:column}
-.bench{padding:8px;max-height:25vh;overflow-y:auto}
+.bottom-bar{background:#282828;border-top:2px solid #3a3a3a;display:flex;flex-direction:column;max-height:25vh;transition:max-height .15s}
+.drag-handle{display:flex;justify-content:center;padding:6px 0 2px;cursor:ns-resize;touch-action:none}
+.drag-handle span{width:36px;height:4px;background:#555;border-radius:2px}
+.bench-sections{flex:1;overflow-y:auto;padding:0 8px 8px}
 .bench-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
 .bench-title{font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.5px}
 .bench-actions{display:flex;gap:4px}
 .bench-actions button{border:none;padding:4px 10px;border-radius:5px;font-size:11px;cursor:pointer;font-weight:500;color:#fff}
 .btn-auto{background:#22915a}
 .btn-clear{background:#dc2626}
-.bench-list{display:flex;gap:6px;flex-wrap:wrap}
+.section-title{font-size:10px;color:#666;text-transform:uppercase;letter-spacing:.5px;margin:10px 0 4px;padding-top:8px;border-top:1px solid #3a3a3a}
+.bench-list{display:flex;gap:6px;flex-wrap:wrap;min-height:28px;padding:4px 0}
+.bench-player.bp-dragging{opacity:.3;pointer-events:none}
+.bp-ghost{position:fixed;z-index:200;pointer-events:none;opacity:.85}
+.drop-marker{width:3px;background:#4ade80;border-radius:2px;align-self:stretch;min-height:24px;flex-shrink:0}
 .bench-player{background:#3a3a3a;padding:5px 9px;border-radius:14px;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:5px;border:2px solid transparent}
 .bench-player.s-avail{border-color:#16a34a}
 .bench-player.s-unavail{border-color:#dc2626}
@@ -144,16 +150,19 @@ main{flex:1;overflow:hidden;position:relative}
 </svg>
 </div>
 </div>
-<div class="bottom-bar">
-<div class="bench">
+<div class="bottom-bar" id="bottomBar">
+<div class="drag-handle" id="dragHandle"><span></span></div>
+<div class="bench-sections">
 <div class="bench-header">
-<span class="bench-title">Bænken</span>
+<span class="bench-title">Bænk</span>
 <div class="bench-actions">
 <button class="btn-auto" id="autoFillBtn">Auto fyld</button>
 <button class="btn-clear" id="clearPitchBtn">Ryd</button>
 </div>
 </div>
-<div class="bench-list" id="benchList"></div>
+<div class="bench-list" id="benchList" data-section="bench"></div>
+<div class="section-title">Reserves</div>
+<div class="bench-list" id="reservesList" data-section="reserves"></div>
 </div>
 </div>
 </div>
@@ -162,12 +171,14 @@ main{flex:1;overflow:hidden;position:relative}
 <div class="add-row">
 <input id="newNum" class="num" type="number" placeholder="#" min="1" max="99">
 <input id="newName" type="text" placeholder="Spiller navn">
+<select id="newTeam" style="background:#3a3a3a;color:#fff;border:1px solid #4a4a4a;padding:6px;border-radius:6px;font-size:12px;min-width:0"><option value="">Hold</option></select>
 <button id="addPlayerBtn">+</button>
 <select id="sortSel" style="background:#3a3a3a;color:#fff;border:1px solid #4a4a4a;padding:6px 6px;border-radius:6px;font-size:12px;cursor:pointer">
 <option value="default">Sorter</option>
 <option value="num">Nr.</option>
 <option value="name">Navn</option>
 <option value="status">Status</option>
+<option value="team">Hold</option>
 </select>
 </div>
 <div id="playersList"></div>
@@ -228,7 +239,7 @@ document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{
   document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));
   t.classList.add('active');
   document.getElementById(t.dataset.view).classList.add('active');
-  if(t.dataset.view==='playersView')renderPlayers();
+  if(t.dataset.view==='playersView'){refreshNewTeamSel();renderPlayers();}
   if(t.dataset.view==='teamsView')renderTeams();
   if(t.dataset.view==='lineupsView')renderLineups();
   if(t.dataset.view==='pitchView')renderPitch();
@@ -295,7 +306,7 @@ function getTeamPlayers(){
 }
 
 // === SWAP MODE ===
-let swapSrc=null; // {type:'pitch'|'bench', idx:N, pid:'...'}
+let swapSrc=null,swapJustDone=false;
 function exitSwap(){
   if(!swapSrc)return;
   swapSrc=null;
@@ -332,10 +343,21 @@ function execSwap(tgt){
     DB.state.placed[s.idx]=tgt.pid;
   }else if(s.type==='bench'&&tgt.type==='pitch'){
     DB.state.placed[tgt.idx]=s.pid;
+  }else if(s.type==='bench'&&tgt.type==='bench'){
+    const sp=DB.players.find(x=>x.id===s.pid);
+    const tp=DB.players.find(x=>x.id===tgt.pid);
+    if(sp&&tp){
+      const ts=sp.section,tt=tp.section;
+      sp.section=tt;tp.section=ts;
+      const ta=sp.statusAt;sp.statusAt=tp.statusAt;tp.statusAt=ta;
+      save('players');
+    }
   }
   save('state');
+  swapJustDone=true;
   exitSwap();
   renderPitch();
+  setTimeout(()=>{swapJustDone=false},100);
 }
 
 // === PITCH ===
@@ -420,43 +442,129 @@ function getAllTeamPlayers(){
   if(!t)return[];
   return DB.players.filter(p=>t.playerIds.includes(p.id));
 }
+function playerSection(p){return p.section||'bench'}
 function renderBench(){
-  const list=document.getElementById('benchList');
+  const benchEl=document.getElementById('benchList');
+  const resEl=document.getElementById('reservesList');
   const placed=Object.values(DB.state.placed);
-  const ORDER={avail:0,injured:1,unavail:2};
-  const team=getAllTeamPlayers().filter(p=>!placed.includes(p.id)&&p.status!=='hidden').sort((a,b)=>(ORDER[a.status||'avail']||0)-(ORDER[b.status||'avail']||0)||(b.statusAt||0)-(a.statusAt||0));
-  if(!team.length){list.innerHTML='<div style="color:#666;font-size:12px">Ingen spillere på bænken</div>';return;}
-  list.innerHTML=team.map(p=>{
-    const s=p.status||'avail';
-    return`<div class="bench-player s-${s}" data-id="${p.id}">${STATUS_ICON[s]}<span class="num">${p.num}</span>${escapeHtml(p.name)}</div>`;
-  }).join('');
-  list.querySelectorAll('.bench-player').forEach(el=>{
-    let bHold=null,bHeld=false;
-    el.addEventListener('pointerdown',e=>{
-      if(swapSrc&&el.classList.contains('swap-tgt')){
-        e.preventDefault();e.stopPropagation();
-        execSwap({type:'bench',pid:el.dataset.id});
+  const all=getAllTeamPlayers().filter(p=>!placed.includes(p.id)&&p.status!=='hidden');
+  const bench=all.filter(p=>playerSection(p)==='bench').sort((a,b)=>(a.benchIdx??9999)-(b.benchIdx??9999));
+  const reserves=all.filter(p=>playerSection(p)==='reserves').sort((a,b)=>{
+    const ia=(a.status||'avail')==='injured'?0:1,ib=(b.status||'avail')==='injured'?0:1;
+    return ia!==ib?ia-ib:(a.benchIdx??9999)-(b.benchIdx??9999);
+  });
+  bench.forEach((p,i)=>p.benchIdx=i);
+  reserves.forEach((p,i)=>p.benchIdx=i);
+  const pill=p=>{const s=p.status||'avail';return`<div class="bench-player s-${s}" data-id="${p.id}">${STATUS_ICON[s]}<span class="num">${p.num}</span>${escapeHtml(p.name)}</div>`};
+  benchEl.innerHTML=bench.length?bench.map(pill).join(''):'<div style="color:#555;font-size:11px">Ingen på bænken</div>';
+  resEl.innerHTML=reserves.length?reserves.map(pill).join(''):'<div style="color:#555;font-size:11px">Ingen reserves</div>';
+  [benchEl,resEl].forEach(list=>{
+    list.querySelectorAll('.bench-player').forEach(el=>attachBenchPlayer(el));
+  });
+}
+
+function findDropIdx(list,x,y,dragId){
+  const pills=[...list.querySelectorAll('.bench-player:not(.bp-dragging)')];
+  for(let i=0;i<pills.length;i++){
+    const r=pills[i].getBoundingClientRect();
+    const mx=r.left+r.width/2,my=r.top+r.height/2;
+    if(y<my+r.height*.4&&x<mx)return i;
+    if(y<r.top)return i;
+  }
+  return pills.length;
+}
+
+function clearMarkers(){document.querySelectorAll('.drop-marker').forEach(m=>m.remove())}
+
+function showMarker(list,idx){
+  clearMarkers();
+  const pills=[...list.querySelectorAll('.bench-player:not(.bp-dragging)')];
+  const marker=document.createElement('div');
+  marker.className='drop-marker';
+  if(idx<pills.length)list.insertBefore(marker,pills[idx]);
+  else list.appendChild(marker);
+}
+
+function attachBenchPlayer(el){
+  let bHold=null,bHeld=false,bDrag=null,ghost=null;
+  el.addEventListener('pointerdown',e=>{
+    if(swapSrc&&el.classList.contains('swap-tgt')){
+      e.preventDefault();e.stopPropagation();
+      swapJustDone=true;
+      execSwap({type:'bench',pid:el.dataset.id});
+      setTimeout(()=>{swapJustDone=false},100);
+      return;
+    }
+    bHeld=false;bDrag=null;
+    const sx=e.clientX,sy=e.clientY;
+    const pid=el.dataset.id;
+    let targetList=null,dropIdx=0;
+
+    const onMove=ev=>{
+      const dx=ev.clientX-sx,dy=ev.clientY-sy;
+      if(!bDrag&&Math.abs(dx)+Math.abs(dy)>8){
+        bDrag=true;clearTimeout(bHold);
+        ghost=el.cloneNode(true);
+        ghost.className='bench-player bp-ghost s-'+(el.className.match(/s-\w+/)?.[0]?.slice(2)||'avail');
+        ghost.style.width=el.offsetWidth+'px';
+        document.body.appendChild(ghost);
+        el.classList.add('bp-dragging');
+      }
+      if(!bDrag||!ghost)return;
+      ghost.style.left=ev.clientX-ghost.offsetWidth/2+'px';
+      ghost.style.top=ev.clientY-ghost.offsetHeight/2+'px';
+      targetList=null;
+      document.querySelectorAll('.bench-list').forEach(l=>{
+        const r=l.getBoundingClientRect();
+        if(ev.clientX>=r.left&&ev.clientX<=r.right&&ev.clientY>=r.top-20&&ev.clientY<=r.bottom+20){
+          targetList=l;
+          dropIdx=findDropIdx(l,ev.clientX,ev.clientY,pid);
+          showMarker(l,dropIdx);
+        }
+      });
+      if(!targetList)clearMarkers();
+    };
+
+    const onUp=ev=>{
+      document.removeEventListener('pointermove',onMove);
+      document.removeEventListener('pointerup',onUp);
+      clearTimeout(bHold);clearMarkers();
+      if(bDrag&&ghost){
+        ghost.remove();ghost=null;
+        el.classList.remove('bp-dragging');
+        const p=DB.players.find(x=>x.id===pid);
+        if(!p||!targetList){renderBench();return;}
+        const sec=targetList.dataset.section;
+        const sectionPlayers=[...getAllTeamPlayers()]
+          .filter(x=>!Object.values(DB.state.placed).includes(x.id)&&x.status!=='hidden'&&playerSection(x)===sec&&x.id!==pid);
+        // Sort same as renderBench to match visual order
+        if(sec==='reserves')sectionPlayers.sort((a,b)=>{
+          const ia=(a.status||'avail')==='injured'?0:1,ib=(b.status||'avail')==='injured'?0:1;
+          return ia!==ib?ia-ib:(a.benchIdx??9999)-(b.benchIdx??9999);
+        }); else sectionPlayers.sort((a,b)=>(a.benchIdx??9999)-(b.benchIdx??9999));
+        sectionPlayers.splice(dropIdx,0,p);
+        p.section=sec;
+        sectionPlayers.forEach((x,i)=>x.benchIdx=i);
+        save('players');
+        renderBench();
         return;
       }
-      bHeld=false;
-      bHold=setTimeout(()=>{
-        bHeld=true;
-        enterSwap({type:'bench',pid:el.dataset.id});
-      },500);
-    });
-    el.addEventListener('pointerup',()=>{
-      clearTimeout(bHold);
-      if(bHeld||swapSrc)return;
-      const p=DB.players.find(x=>x.id===el.dataset.id);
+      if(bHeld||swapSrc||swapJustDone)return;
+      const p=DB.players.find(x=>x.id===pid);
       if(!p)return;
-      const BENCH_CYCLE=['avail','unavail','injured'];
+      const BENCH_CYCLE=['avail','injured','unavail'];
       const next=BENCH_CYCLE[(BENCH_CYCLE.indexOf(p.status||'avail')+1)%BENCH_CYCLE.length];
       p.status=next;
-      p.statusAt=Date.now();
       save('players');
       renderBench();
-    });
-    el.addEventListener('pointercancel',()=>clearTimeout(bHold));
+    };
+
+    document.addEventListener('pointermove',onMove);
+    document.addEventListener('pointerup',onUp);
+    bHold=setTimeout(()=>{
+      bHeld=true;
+      enterSwap({type:'bench',pid:el.dataset.id});
+    },500);
   });
 }
 
@@ -580,19 +688,26 @@ function renderPlayers(){
   if(!DB.players.length){list.innerHTML='<div class="empty">Ingen spillere endnu. Tilføj din første spiller ovenfor.</div>';return}
   const sortBy=document.getElementById('sortSel')?.value||'default';
   const STATUS_ORDER={avail:0,injured:1,unavail:2,hidden:3};
+  const teamOf=p=>{const t=DB.teams.find(t=>t.playerIds.includes(p.id));return t?t.name:'\uffff';};
   const sorted=[...DB.players].sort((a,b)=>{
     if(sortBy==='name')return a.name.localeCompare(b.name);
     if(sortBy==='status')return(STATUS_ORDER[a.status||'avail']||0)-(STATUS_ORDER[b.status||'avail']||0);
     if(sortBy==='num')return a.num-b.num;
+    if(sortBy==='team')return teamOf(a).localeCompare(teamOf(b));
     return 0;
   });
   list.innerHTML=sorted.map(p=>{
     const s=p.status||'avail';
+    const pt=DB.teams.find(t=>t.playerIds.includes(p.id));
     return`<div class="player-row" data-id="${p.id}">
       <div class="swipe-bg">Fjern spiller</div>
       <div class="row-content">
         <input class="num-edit" type="number" value="${p.num}" data-f="num">
         <input type="text" value="${escapeHtml(p.name)}" data-f="name">
+        <select class="team-sel" style="background:#3a3a3a;color:#fff;border:1px solid #4a4a4a;padding:3px;border-radius:4px;font-size:10px;max-width:70px;min-width:0">
+          <option value="">-</option>
+          ${DB.teams.map(t=>`<option value="${t.id}"${pt&&pt.id===t.id?' selected':''}>${escapeHtml(t.name)}</option>`).join('')}
+        </select>
         <span class="status-btn">${STATUS_ICON[s]}</span>
       </div>
     </div>`;
@@ -608,6 +723,12 @@ function renderPlayers(){
         save('players');
       };
     });
+    row.querySelector('.team-sel').onchange=function(){
+      const pid=id,tid=this.value;
+      DB.teams.forEach(t=>t.playerIds=t.playerIds.filter(x=>x!==pid));
+      if(tid){const t=DB.teams.find(x=>x.id===tid);if(t)t.playerIds.push(pid);}
+      save('teams');
+    };
     row.querySelector('.status-btn').onclick=()=>{
       const p=DB.players.find(x=>x.id===id);
       if(!p)return;
@@ -622,11 +743,21 @@ function renderPlayers(){
 
 document.getElementById('sortSel').onchange=renderPlayers;
 
+function refreshNewTeamSel(){
+  const s=document.getElementById('newTeam');
+  const v=s.value;
+  s.innerHTML='<option value="">Hold</option>';
+  DB.teams.forEach(t=>{const o=document.createElement('option');o.value=t.id;o.textContent=t.name;s.appendChild(o)});
+  s.value=v;
+}
 document.getElementById('addPlayerBtn').onclick=()=>{
   const num=parseInt(document.getElementById('newNum').value);
   const name=document.getElementById('newName').value.trim();
   if(!num||!name)return alert('Udfyld nummer og navn');
-  DB.players.push({id:uid(),num,name,status:'avail'});
+  const p={id:uid(),num,name,status:'avail'};
+  DB.players.push(p);
+  const tid=document.getElementById('newTeam').value;
+  if(tid){const t=DB.teams.find(x=>x.id===tid);if(t&&!t.playerIds.includes(p.id)){t.playerIds.push(p.id);save('teams');}}
   save('players');
   document.getElementById('newNum').value='';
   document.getElementById('newName').value='';
@@ -775,6 +906,28 @@ function closeModal(){document.getElementById('modal').classList.remove('show')}
 window.closeModal=closeModal;
 document.getElementById('modal').onclick=e=>{if(e.target.id==='modal')closeModal()};
 function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+
+// Bottom bar resize
+(function(){
+  const bar=document.getElementById('bottomBar');
+  const handle=document.getElementById('dragHandle');
+  let startY,startH;
+  handle.addEventListener('pointerdown',e=>{
+    e.preventDefault();handle.setPointerCapture(e.pointerId);
+    startY=e.clientY;startH=bar.offsetHeight;
+    bar.style.transition='none';
+  });
+  handle.addEventListener('pointermove',e=>{
+    if(startY==null)return;
+    const dy=startY-e.clientY;
+    const vh=window.innerHeight;
+    const h=Math.max(vh*0.12,Math.min(vh*0.55,startH+dy));
+    bar.style.maxHeight=h+'px';
+  });
+  const endResize=()=>{startY=null;bar.style.transition='';};
+  handle.addEventListener('pointerup',endResize);
+  handle.addEventListener('pointercancel',endResize);
+})();
 
 if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js').catch(()=>{})}
 renderPitch();
