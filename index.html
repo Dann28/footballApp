@@ -347,6 +347,7 @@ function openSlotPicker(slotIdx){
   const avail=getTeamPlayers().filter(p=>!placed.includes(p.id)||p.id===current);
   showModal(`<h2>Vælg spiller</h2>
     <div class="modal-list">
+      <div class="modal-list-item" data-id="__new__" style="color:#4ade80;font-weight:600">+ Opret spiller</div>
       ${current?`<div class="modal-list-item" data-id=""><span style="color:#dc2626">✕ Fjern</span></div>`:''}
       ${avail.map(p=>`<div class="modal-list-item" data-id="${p.id}"><span style="background:#4ade80;color:#000;border-radius:50%;width:26px;height:26px;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:11px">${p.num}</span>${escapeHtml(p.name)}</div>`).join('')}
     </div>
@@ -354,11 +355,37 @@ function openSlotPicker(slotIdx){
   document.querySelectorAll('.modal-list-item').forEach(el=>{
     el.onclick=()=>{
       const id=el.dataset.id;
+      if(id==='__new__'){closeModal();openCreatePlayer(slotIdx);return;}
       if(!id)delete DB.state.placed[slotIdx];
       else DB.state.placed[slotIdx]=id;
       save('state');closeModal();renderPitch();
     };
   });
+}
+
+function openCreatePlayer(slotIdx){
+  showModal(`<h2>Opret spiller</h2>
+    <input id="cpNum" type="number" placeholder="Nummer" min="1" max="99">
+    <input id="cpName" type="text" placeholder="Navn">
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal()">Annuller</button>
+      <button class="btn-primary" id="cpSave">Opret</button>
+    </div>`);
+  document.getElementById('cpSave').onclick=()=>{
+    const num=parseInt(document.getElementById('cpNum').value);
+    const name=document.getElementById('cpName').value.trim();
+    if(!num||!name)return alert('Udfyld nummer og navn');
+    const p={id:uid(),num,name,status:'avail'};
+    DB.players.push(p);
+    if(DB.state.teamId){
+      const t=DB.teams.find(x=>x.id===DB.state.teamId);
+      if(t&&!t.playerIds.includes(p.id))t.playerIds.push(p.id);
+      save('teams');
+    }
+    DB.state.placed[slotIdx]=p.id;
+    save('players');save('state');
+    closeModal();renderPitch();
+  };
 }
 
 function openBenchPicker(playerId){
