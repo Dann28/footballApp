@@ -1,4 +1,4 @@
-const CACHE='fb-v7';
+const CACHE='fb-v8';
 const ASSETS=['./','./index.html','./manifest.json'];
 self.addEventListener('install',e=>{
   e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)).then(()=>self.skipWaiting()));
