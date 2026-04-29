@@ -33,6 +33,12 @@ main{flex:1;overflow:hidden;position:relative}
 .player{position:absolute;width:14%;aspect-ratio:1;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:grab;touch-action:none;z-index:2}
 @media(min-width:600px){.player{width:11%}}
 .player.dragging{z-index:10;cursor:grabbing}
+.player.swap-src{transform:translate(-50%,-50%) scale(1.15);z-index:15;filter:brightness(1.3)}
+.player.swap-tgt{cursor:pointer}
+.player.swap-tgt::after{content:'⇄';position:absolute;top:0;right:0;width:20px;height:20px;background:#4ade80;color:#000;border-radius:50%;font-size:11px;display:flex;align-items:center;justify-content:center;font-weight:700;z-index:5;box-shadow:0 1px 3px rgba(0,0,0,.5)}
+.bench-player.swap-src{transform:scale(1.1);filter:brightness(1.3);box-shadow:0 2px 8px rgba(74,222,128,.5)}
+.bench-player.swap-tgt{cursor:pointer}
+.bench-player.swap-tgt::after{content:'⇄';margin-left:4px;background:#4ade80;color:#000;border-radius:50%;width:16px;height:16px;font-size:9px;display:inline-flex;align-items:center;justify-content:center;font-weight:700}
 .jersey-wrap{width:80%;position:relative;display:flex;align-items:center;justify-content:center}
 .jersey-wrap svg{width:100%;height:auto;filter:drop-shadow(0 2px 3px rgba(0,0,0,.5))}
 .jersey-num{position:absolute;top:52%;left:50%;transform:translate(-50%,-50%);font-weight:700;font-size:clamp(10px,3vw,18px);color:#fff;text-shadow:0 0 3px rgba(0,0,0,.6)}
@@ -288,6 +294,50 @@ function getTeamPlayers(){
   return DB.players.filter(p=>t.playerIds.includes(p.id)&&p.status==='avail');
 }
 
+// === SWAP MODE ===
+let swapSrc=null; // {type:'pitch'|'bench', idx:N, pid:'...'}
+function exitSwap(){
+  if(!swapSrc)return;
+  swapSrc=null;
+  document.querySelectorAll('.swap-src,.swap-tgt').forEach(e=>{e.classList.remove('swap-src','swap-tgt')});
+  document.removeEventListener('pointerdown',swapOutside,true);
+}
+function enterSwap(src){
+  exitSwap();
+  swapSrc=src;
+  document.querySelectorAll('.player').forEach(el=>{
+    const idx=+el.dataset.idx;
+    if(src.type==='pitch'&&idx===src.idx)el.classList.add('swap-src');
+    else el.classList.add('swap-tgt');
+  });
+  document.querySelectorAll('.bench-player').forEach(el=>{
+    if(src.type==='bench'&&el.dataset.id===src.pid)el.classList.add('swap-src');
+    else el.classList.add('swap-tgt');
+  });
+  setTimeout(()=>document.addEventListener('pointerdown',swapOutside,true),50);
+}
+function swapOutside(e){
+  if(e.target.closest('.swap-tgt'))return;
+  exitSwap();
+}
+function execSwap(tgt){
+  if(!swapSrc)return;
+  const s=swapSrc;
+  if(s.type==='pitch'&&tgt.type==='pitch'){
+    const a=DB.state.placed[s.idx],b=DB.state.placed[tgt.idx];
+    DB.state.placed[s.idx]=b;DB.state.placed[tgt.idx]=a;
+    if(!a)delete DB.state.placed[s.idx];
+    if(!b)delete DB.state.placed[tgt.idx];
+  }else if(s.type==='pitch'&&tgt.type==='bench'){
+    DB.state.placed[s.idx]=tgt.pid;
+  }else if(s.type==='bench'&&tgt.type==='pitch'){
+    DB.state.placed[tgt.idx]=s.pid;
+  }
+  save('state');
+  exitSwap();
+  renderPitch();
+}
+
 // === PITCH ===
 const pitch=document.getElementById('pitch');
 function renderPitch(){
@@ -307,23 +357,33 @@ function renderPitch(){
     const p=pid?DB.players.find(x=>x.id===pid):null;
     el.innerHTML=`<div class="jersey-wrap">${jerseySvg(jc,isGk)}<span class="jersey-num">${p?p.num:'+'}</span></div><div class="player-name">${p?escapeHtml(p.name):'Tom'}</div>`;
     pitch.appendChild(el);
-    attachDrag(el,i,'player');
+    attachDrag(el,i);
     el.addEventListener('click',e=>{if(!el._moved)openSlotPicker(i)});
   });
   renderBench();
 }
 
 let drag=null;
-function attachDrag(el,idx,type){
+function attachDrag(el,idx){
+  let holdTimer=null,held=false;
+  const clearHold=()=>{clearTimeout(holdTimer);holdTimer=null;};
   const start=(x,y)=>{
+    if(swapSrc){return;}
     const r=pitch.getBoundingClientRect();
-    drag={el,idx,type,startX:x,startY:y,r,moved:false};
-    el._moved=false;
+    drag={el,idx,startX:x,startY:y,r,moved:false};
+    el._moved=false;held=false;
     el.classList.add('dragging');
+    holdTimer=setTimeout(()=>{
+      if(!drag||drag.moved)return;
+      held=true;el._moved=true;
+      el.classList.remove('dragging');
+      drag=null;
+      enterSwap({type:'pitch',idx,pid:DB.state.placed[idx]||null});
+    },500);
   };
   const move=(x,y)=>{
     if(!drag||drag.el!==el)return;
-    if(Math.abs(x-drag.startX)>4||Math.abs(y-drag.startY)>4)drag.moved=true,el._moved=true;
+    if(Math.abs(x-drag.startX)>4||Math.abs(y-drag.startY)>4){drag.moved=true;el._moved=true;clearHold();}
     if(!drag.moved)return;
     const px=((x-drag.r.left)/drag.r.width)*100;
     const py=((y-drag.r.top)/drag.r.height)*100;
@@ -331,21 +391,27 @@ function attachDrag(el,idx,type){
     el.style.top=Math.max(3,Math.min(97,py))+'%';
   };
   const end=()=>{
-    if(!drag||drag.el!==el)return;
+    clearHold();
+    if(!drag||drag.el!==el){drag=null;return;}
     el.classList.remove('dragging');
     if(drag.moved){
-      const p=[parseFloat(el.style.left),parseFloat(el.style.top)];
-      if(type==='ball')DB.state.ballPos=p;
-      else DB.state.positions[idx]=p;
+      DB.state.positions[idx]=[parseFloat(el.style.left),parseFloat(el.style.top)];
       save('state');
     }
     drag=null;
     setTimeout(()=>{el._moved=false},50);
   };
-  el.addEventListener('pointerdown',e=>{e.preventDefault();el.setPointerCapture(e.pointerId);start(e.clientX,e.clientY)});
+  el.addEventListener('pointerdown',e=>{
+    if(swapSrc&&el.classList.contains('swap-tgt')){
+      e.preventDefault();e.stopPropagation();
+      execSwap({type:'pitch',idx,pid:DB.state.placed[idx]||null});
+      return;
+    }
+    e.preventDefault();el.setPointerCapture(e.pointerId);start(e.clientX,e.clientY);
+  });
   el.addEventListener('pointermove',e=>move(e.clientX,e.clientY));
   el.addEventListener('pointerup',end);
-  el.addEventListener('pointercancel',end);
+  el.addEventListener('pointercancel',()=>{clearHold();end();});
 }
 
 function getAllTeamPlayers(){
@@ -365,7 +431,22 @@ function renderBench(){
     return`<div class="bench-player s-${s}" data-id="${p.id}">${STATUS_ICON[s]}<span class="num">${p.num}</span>${escapeHtml(p.name)}</div>`;
   }).join('');
   list.querySelectorAll('.bench-player').forEach(el=>{
-    el.onclick=()=>{
+    let bHold=null,bHeld=false;
+    el.addEventListener('pointerdown',e=>{
+      if(swapSrc&&el.classList.contains('swap-tgt')){
+        e.preventDefault();e.stopPropagation();
+        execSwap({type:'bench',pid:el.dataset.id});
+        return;
+      }
+      bHeld=false;
+      bHold=setTimeout(()=>{
+        bHeld=true;
+        enterSwap({type:'bench',pid:el.dataset.id});
+      },500);
+    });
+    el.addEventListener('pointerup',()=>{
+      clearTimeout(bHold);
+      if(bHeld||swapSrc)return;
       const p=DB.players.find(x=>x.id===el.dataset.id);
       if(!p)return;
       const BENCH_CYCLE=['avail','unavail','injured'];
@@ -374,7 +455,8 @@ function renderBench(){
       p.statusAt=Date.now();
       save('players');
       renderBench();
-    };
+    });
+    el.addEventListener('pointercancel',()=>clearTimeout(bHold));
   });
 }
 
