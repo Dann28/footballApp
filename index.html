@@ -44,8 +44,8 @@ main{flex:1;overflow:hidden;position:relative}
 .jersey-wrap svg{width:100%;height:auto;filter:drop-shadow(0 2px 3px rgba(0,0,0,.5))}
 .jersey-num{position:absolute;top:52%;left:50%;transform:translate(-50%,-50%);font-weight:700;font-size:clamp(10px,3vw,18px);color:#fff;text-shadow:0 0 3px rgba(0,0,0,.6)}
 .player-name{font-size:clamp(8px,2vw,11px);color:#fff;text-shadow:1px 1px 2px #000;margin-top:1px;white-space:nowrap;max-width:130%;overflow:hidden;text-overflow:ellipsis;font-weight:600;text-align:center}
-.bottom-bar{background:#282828;border-top:2px solid #3a3a3a;display:flex;flex-direction:column;max-height:44px;transition:max-height .25s ease}
-.bottom-bar.expanded{max-height:67vh}
+.bottom-bar{background:#282828;border-top:2px solid #3a3a3a;display:flex;flex-direction:column;height:110px;transition:height .25s ease;flex-shrink:0}
+.bottom-bar.expanded{height:67vh}
 .bench-toggle{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;cursor:pointer;background:#1a7a4a;color:#fff;font-size:13px;font-weight:600;border:none;width:100%}
 .bench-toggle .arrow{font-size:14px;transition:transform .25s}
 .bottom-bar.expanded .bench-toggle .arrow{transform:rotate(180deg)}
@@ -122,7 +122,7 @@ main{flex:1;overflow:hidden;position:relative}
 <header>
 <div class="h-left"><span class="icon">⚽</span><select id="teamSelH"><option value="">Hold...</option></select></div>
 <div class="h-mid"><select id="formationSel"></select></div>
-<div class="h-right"><span style="font-size:10px;color:#cfe7d8;margin-right:6px">v12</span><button id="saveBtn">Gem</button></div>
+<div class="h-right"><span style="font-size:10px;color:#cfe7d8;margin-right:6px">v13</span><button id="saveBtn">Gem</button></div>
 </header>
 <div class="tabs">
 <div class="tab active" data-view="pitchView">Bane</div>
