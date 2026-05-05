@@ -120,7 +120,7 @@ main{flex:1;overflow:hidden;position:relative}
 <header>
 <div class="h-left"><span class="icon">⚽</span><select id="teamSelH"><option value="">Hold...</option></select></div>
 <div class="h-mid"><select id="formationSel"></select></div>
-<div class="h-right"><span style="font-size:10px;color:#cfe7d8;margin-right:6px">v9</span><button id="saveBtn">Gem</button></div>
+<div class="h-right"><span style="font-size:10px;color:#cfe7d8;margin-right:6px">v10</span><button id="saveBtn">Gem</button></div>
 </header>
 <div class="tabs">
 <div class="tab active" data-view="pitchView">Bane</div>
@@ -943,7 +943,15 @@ function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':
   handle.addEventListener('lostpointercapture',endResize);
 })();
 
-if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js').catch(()=>{})}
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).then(reg=>{
+    document.addEventListener('visibilitychange',()=>{if(!document.hidden)reg.update()});
+    reg.addEventListener('updatefound',()=>{
+      const nw=reg.installing;if(!nw)return;
+      nw.addEventListener('statechange',()=>{if(nw.state==='activated')location.reload()});
+    });
+  }).catch(()=>{});
+}
 renderPitch();
 </script>
 </body>
